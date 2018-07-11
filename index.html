@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Image grading tool</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" crossorigin="anonymous">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <style>
+    .spinner {
+      border: 16px solid #f3f3f3;
+      border-radius: 50%;
+      border-top: 16px solid #3498db;
+      width: 120px;
+      height: 120px;
+      -webkit-animation: spin 2s linear infinite; /* Safari */
+      animation: spin 2s linear infinite;
+    }
+
+    /* Safari */
+    @-webkit-keyframes spin {
+      0% { -webkit-transform: rotate(0deg); }
+      100% { -webkit-transform: rotate(360deg); }
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+<div class="row">
+<div class="col-sm">
+  <h1>
+    <button class="btn btn-success" onclick="grade(true)">Good</button>
+    <button class="btn btn-danger" onclick="grade(false)">Bad</button>
+    <button class="btn btn-primary" onclick="loadNextImage()">Skip</button>
+  </h1>
+  <div id="spinner" style="display: none; padding-top: 50px; padding-left: 30px;"><div class="spinner"></div></div>
+  <div id="image-container" style="display: none;">
+    <h3 id="image-heading" class="text-muted"></h3>
+    <img id="image" class="img-fluid" style="max-height: 800px;"/>
+  </div>
+</div>
+</div>
+</div>
+
+<script type="text/javascript">
+var fullPath; // The full path to the currently displayed image in Dropbox
+var imgContainerElement = document.getElementById('image-container');
+var imgHeadingElement = document.getElementById('image-heading');
+var imgElement = document.getElementById('image');
+var spinnerElement = document.getElementById('spinner');
+
+var cachedImg = new Image();
+cachedImg.onload = function() {
+  imgElement.src = cachedImg.src;
+  imgContainerElement.style.display = 'block';
+  spinnerElement.style.display = 'none';
+  imgHeadingElement.innerText = fullPath.substring(fullPath.lastIndexOf('/') + 1);
+};
+
+function grade(isGood) {
+  var paths = fullPath.split('/');
+  paths[paths.length - 2] = isGood ? 'good': 'bad';
+  var request = {
+    body: `{
+      "from_path": "${fullPath}",
+      "to_path": "${paths.join('/')}"
+    }`,
+    headers: {
+      "Authorization": "Bearer ICByvHHx9_4AAAAAAAAyBmFg3b9p7MnbLqKWGUm-cb2wrUrRVDCRAga0s2fzohW5",
+      "Content-Type": "application/json"
+    },
+    method: "POST"
+  };
+
+  fetch("https://api.dropboxapi.com/2/files/move_v2", request).then(
+    function(response) {
+      if(response.status == 200) {
+        loadNextImage();
+      }
+    }
+  );
+}
+
+function loadNextImage() {
+  imgContainerElement.style.display = 'none';
+  spinnerElement.style.display = 'block';
+
+  var request = {
+    body: '{"path": "/Apps/site44/hpic.site44.com/incoming"}',
+    headers: {
+      "Authorization": "Bearer ICByvHHx9_4AAAAAAAAyBE2vPAL7bXOol-1OWPEfrAgMhoMIL6wcedZFz6WnCnqV",
+      "Cache-Control": "no-cache",
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    method: "POST"
+  };
+  fetch("https://api.dropboxapi.com/2/files/list_folder", request).then(
+    function(response) {
+      if(response.status == 200) {
+        response.json().then(
+          function(data) {
+            fullPath = getRandomPath(data);
+            cachedImg.src = fullPath.substring(fullPath.indexOf('/incoming'));
+          }
+        )
+      }
+    }
+  );
+}
+
+function getRandomPath(data) {
+  var randomIndex = Math.floor(Math.random() * (data.entries.length - 1));
+  return data.entries[randomIndex].path_display;
+}
+
+window.onload = loadNextImage();
+</script>
+</body>
+</html>
